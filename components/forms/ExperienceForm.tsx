@@ -18,7 +18,7 @@ import { format } from "date-fns"; // Import the date-fns utils
 
 const experienceFormSchema = z.object({
   company: z.string().min(2, "Company must be at least 2 characters"),
-  position: z.string().min(2, "Position must be at least 2 characters"),
+  role: z.string().min(2, "Role must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
@@ -41,7 +41,7 @@ export function ExperienceForm({ experience, onSuccess }: ExperienceFormProps) {
     resolver: zodResolver(experienceFormSchema),
     defaultValues: experience || {
       company: "",
-      position: "",
+      role: "",
       description: "",
       startDate: undefined,
       endDate: undefined,
@@ -114,12 +114,12 @@ export function ExperienceForm({ experience, onSuccess }: ExperienceFormProps) {
         />
         <FormField
           control={form.control}
-          name="position"
+          name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Position</FormLabel>
+              <FormLabel>Role</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="Enter position title" />
+                <Input {...field} placeholder="Enter role title" />
               </FormControl>
               <FormMessage />
             </FormItem>
