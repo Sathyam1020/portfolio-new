@@ -1,80 +1,110 @@
-import { NextAuthOptions } from 'next-auth';
+import { NextAuthOptions, Session } from 'next-auth';
+import bcrypt from 'bcryptjs';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { compare } from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { emailSchema, passwordSchema } from '@/schema/credentials-schema';
+import { prisma } from "@/lib/prisma";
+import { PrismaClientInitializationError } from '@prisma/client/runtime/library';
+import { JWT } from 'next-auth/jwt';
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   pages: {
-    signIn: '/admin/login',
+    signIn: '/admin/login', // Custom sign-in page
   },
   session: {
     strategy: 'jwt',
   },
   providers: [
     CredentialsProvider({
-      name: 'Sign in',
+      name: 'Credentials',
       credentials: {
-        email: {
-          label: 'Email',
-          type: 'email',
-          placeholder: 'example@example.com',
-        },
-        password: { label: 'Password', type: 'password' },
+        email: { type: 'email' },
+        password: { type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
-          return null;
+          return null; // If no credentials, return null
         }
 
-        const admin = await prisma.admin.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
-
-        if (!admin) {
-          return null;
+        const emailValidation = emailSchema.safeParse(credentials.email);
+        if (!emailValidation.success) {
+          throw new Error('Invalid email format');
         }
 
-        const isPasswordValid = await compare(
-          credentials.password,
-          admin.password
-        );
-
-        if (!isPasswordValid) {
-          return null;
+        const passwordValidation = passwordSchema.safeParse(credentials.password);
+        if (!passwordValidation.success) {
+          throw new Error(passwordValidation.error.issues[0].message);
         }
 
-        return {
-          id: admin.id + '',
-          email: admin.email,
-          name: null,
-          randomKey: 'Hey cool',
-        };
+        try {
+          // Find user by email
+          const user = await prisma.admin.findUnique({
+            where: {
+              email: emailValidation.data,
+            },
+          });
+
+          if (!user) {
+            return Response.json({
+                message: 'User not found',
+            })
+          }
+
+          if (!user.password) {
+            // If user has no password, hash the password and update the user
+            const hashedPassword = await bcrypt.hash(passwordValidation.data, 10);
+
+            const updatedUser = await prisma.admin.update({
+              where: {
+                email: emailValidation.data,
+              },
+              data: {
+                password: hashedPassword,
+              },
+            });
+
+            return updatedUser;
+          }
+
+          // Validate password
+          const passwordVerification = await bcrypt.compare(passwordValidation.data, user.password);
+          if (!passwordVerification) {
+            throw new Error('Invalid password');
+          }
+
+          return user; // Return user if password is valid
+        } catch (error) {
+          if (error instanceof PrismaClientInitializationError) {
+            throw new Error('Internal server error');
+          }
+          console.error(error);
+          throw error; // Re-throw any other errors
+        }
       },
     }),
   ],
   callbacks: {
-    session: ({ session, token }) => {
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: token.id,
-          randomKey: token.randomKey,
-        },
-      };
-    },
-    jwt: ({ token, user }) => {
+    async jwt({ token, user }) {
       if (user) {
-        const u = user as unknown as any;
-        return {
-          ...token,
-          id: u.id,
-          randomKey: u.randomKey,
-        };
+        token.id = user.id; // Store the user ID in the token
+        token.email = user.email; // Store email in token
       }
       return token;
     },
+    async session({ session, token }: { session: Session; token: JWT }) {
+      if (token?.email) {
+        // Fetch the user using the email from the token
+        const user = await prisma.admin.findUnique({
+          where: {
+            email: token.email,
+          },
+        });
+
+        if (user && session.user) {
+          session.user.id = user.id; // Attach the user ID to the session
+        }
+      }
+      return session;
+    },
   },
-} satisfies NextAuthOptions;
+  secret: process.env.NEXTAUTH_SECRET ?? 'secret', // Secret for JWT signing
+};
