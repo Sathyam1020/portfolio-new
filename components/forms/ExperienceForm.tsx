@@ -59,7 +59,7 @@ export function ExperienceForm({ experience, onSuccess }: ExperienceFormProps) {
   async function onSubmit(data: ExperienceFormValues) {
     setIsSubmitting(true);
     try {
-      const response = await fetch("http://localhost:3000/api/experiences", {
+      const response = await fetch("https://portfolio-new-black-nu.vercel.app/api/experiences", {
         method: experience ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

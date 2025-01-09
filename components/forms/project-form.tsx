@@ -59,7 +59,7 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
   async function onSubmit(data: ProjectFormValues) {
     setIsSubmitting(true);
     try {
-      const response = await fetch("http://localhost:3000/api/projects", {
+      const response = await fetch("https://portfolio-new-black-nu.vercel.app/api/projects", {
         method: project ? "PUT" : "POST", // Use PUT for updating and POST for adding
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
