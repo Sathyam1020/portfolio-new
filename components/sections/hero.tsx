@@ -67,6 +67,11 @@ export function Hero() {
           <Button size="lg" asChild>
             <a href="#contact">Get in Touch</a>
           </Button>
+          <Button size="lg" className="ml-2" asChild>
+            <a href="/resume.pdf" download="Sathyam_Sahu_Resume" className="bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                Download Resume
+            </a>
+           </Button>
         </motion.div>
       </div>
     </section>
