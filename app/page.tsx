@@ -19,11 +19,18 @@ export default async function Home() {
       },
     }),
   ]);
+  console.log("Projects:", projects);
+  console.log("Experience: ", experiences);
 
   return (
     <main>
       <Navbar/>
       <Hero />
+      {projects.map((project) => (
+        <div key={project.id}>
+            {project.title}
+        </div>
+      ))}
       <Projects projects={projects} />
       <SkillsPage />
       <Experience experiences={experiences} />
