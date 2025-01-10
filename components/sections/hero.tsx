@@ -36,7 +36,7 @@ export function Hero() {
           className="flex justify-center space-x-4 mb-8"
         >
           <a
-            href="https://github.com"
+            href="https://github.com/Sathyam1020"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-primary transition-colors"
@@ -44,7 +44,7 @@ export function Hero() {
             <Github size={24} />
           </a>
           <a
-            href="https://linkedin.com"
+            href="https://www.linkedin.com/in/sathyam-sahu-824946253/"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-primary transition-colors"

@@ -26,11 +26,6 @@ export default async function Home() {
     <main>
       <Navbar/>
       <Hero />
-      {/* {projects.map((project) => (
-        <div key={project.id}>
-            {project.title}
-        </div>
-      ))} */}
       <Projects projects={projects} />
       <SkillsPage />
       <Experience experiences={experiences} />
