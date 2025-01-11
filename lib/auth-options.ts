@@ -17,27 +17,29 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { type: 'email' },
-        password: { type: 'password' },
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       //@ts-ignore
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
-          return null; // If no credentials, return null
+          throw new Error('Email and password are required');
         }
 
+        // Validate email format
         const emailValidation = emailSchema.safeParse(credentials.email);
         if (!emailValidation.success) {
           throw new Error('Invalid email format');
         }
 
+        // Validate password format
         const passwordValidation = passwordSchema.safeParse(credentials.password);
         if (!passwordValidation.success) {
           throw new Error(passwordValidation.error.issues[0].message);
         }
 
         try {
-          // Find user by email
+          // Find the user in the database
           const user = await prisma.admin.findUnique({
             where: {
               email: emailValidation.data,
@@ -45,40 +47,30 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            return Response.json({
-                message: 'User not found',
-            })
+            throw new Error('Invalid email or password'); // Do not reveal whether the email or password is incorrect
           }
 
           if (!user.password) {
-            // If user has no password, hash the password and update the user
-            const hashedPassword = await bcrypt.hash(passwordValidation.data, 10);
-
-            const updatedUser = await prisma.admin.update({
-              where: {
-                email: emailValidation.data,
-              },
-              data: {
-                password: hashedPassword,
-              },
-            });
-
-            return updatedUser;
+            throw new Error('No password set for this account'); // Handle accounts without a password set
           }
 
-          // Validate password
-          const passwordVerification = await bcrypt.compare(passwordValidation.data, user.password);
-          if (!passwordVerification) {
-            throw new Error('Invalid password');
+          // Compare the hashed password
+          const passwordMatch = await bcrypt.compare(passwordValidation.data, user.password);
+          if (!passwordMatch) {
+            throw new Error('Invalid email or password'); // Do not reveal whether the email or password is incorrect
           }
 
-          return user; // Return user if password is valid
+          // Return the user object if credentials are valid
+          return {
+            id: user.id,
+            email: user.email,
+          };
         } catch (error) {
           if (error instanceof PrismaClientInitializationError) {
-            throw new Error('Internal server error');
+            throw new Error('Database connection error');
           }
-          console.error(error);
-          throw error; // Re-throw any other errors
+          console.error('Authorization error:', error);
+          throw new Error('Internal server error');
         }
       },
     }),
@@ -86,26 +78,22 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id; // Store the user ID in the token
-        token.email = user.email; // Store email in token
+        token.id = user.id; // Attach user ID to the JWT token
+        token.email = user.email; // Attach email to the JWT token
       }
       return token;
     },
     async session({ session, token }: { session: Session; token: JWT }) {
-      if (token?.email) {
-        // Fetch the user using the email from the token
-        const user = await prisma.admin.findUnique({
-          where: {
-            email: token.email,
-          },
-        });
-
-        if (user && session.user) {
-          session.user.id = user.id; // Attach the user ID to the session
-        }
+      if (token?.id && token?.email) {
+        // Attach the token values to the session object
+        session.user = {
+          ...session.user,
+          id: token.id as number,
+          email: token.email,
+        };
       }
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET ?? 'secret', // Secret for JWT signing
+  secret: process.env.NEXTAUTH_SECRET ?? 'secret',
 };
